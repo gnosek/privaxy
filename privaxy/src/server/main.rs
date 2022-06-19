@@ -7,7 +7,8 @@ use include_dir::{include_dir, Dir};
 use reqwest::redirect::Policy;
 use std::collections::HashSet;
 use std::convert::Infallible;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
@@ -35,7 +36,34 @@ const RUST_LOG_ENV_KEY: &str = "RUST_LOG";
 
 #[tokio::main]
 async fn main() {
-    let ip = [127, 0, 0, 1];
+    let ip_addr = std::env::var("BIND_IP").unwrap_or("127.0.0.1".to_string());
+
+    let proxy_ip_addr = std::env::var("PROXY_BIND_IP").unwrap_or_else(|_| ip_addr.clone());
+    let proxy_ip_addr = match IpAddr::from_str(&proxy_ip_addr) {
+        Ok(addr) => addr,
+        Err(e) => {
+            println!("Invalid proxy IP address: {} (error: {})", proxy_ip_addr, e);
+            std::process::exit(1);
+        }
+    };
+
+    let gui_ip_addr = std::env::var("GUI_BIND_IP").unwrap_or_else(|_| ip_addr.clone());
+    let gui_ip_addr = match IpAddr::from_str(&gui_ip_addr) {
+        Ok(addr) => addr,
+        Err(e) => {
+            println!("Invalid GUI IP address: {} (error: {})", gui_ip_addr, e);
+            std::process::exit(1);
+        }
+    };
+
+    let api_ip_addr = std::env::var("API_BIND_IP").unwrap_or(ip_addr);
+    let api_ip_addr = match IpAddr::from_str(&api_ip_addr) {
+        Ok(addr) => addr,
+        Err(e) => {
+            println!("Invalid API IP address: {} (error: {})", api_ip_addr, e);
+            std::process::exit(1);
+        }
+    };
 
     // We way need more logs to perform debugging or troubleshooting.
     // Let's only set default logging when "RUST_LOG" is not already set.
@@ -120,7 +148,7 @@ async fn main() {
 
     let configuration_save_lock = Arc::new(tokio::sync::Mutex::new(()));
 
-    let web_gui_server_addr = SocketAddr::from((ip, 8200));
+    let web_gui_server_addr = SocketAddr::from((api_ip_addr, 8200));
 
     web_gui::start_web_gui_server(
         broadcast_tx.clone(),
@@ -183,7 +211,7 @@ async fn main() {
         }
     });
 
-    let proxy_server_addr = SocketAddr::from((ip, 8100));
+    let proxy_server_addr = SocketAddr::from((proxy_ip_addr, 8100));
 
     let server = Server::bind(&proxy_server_addr)
         .http1_preserve_header_case(true)
@@ -191,7 +219,7 @@ async fn main() {
         .tcp_keepalive(Some(Duration::from_secs(600)))
         .serve(make_service);
 
-    let web_gui_static_files_server_addr = SocketAddr::from((ip, 8000));
+    let web_gui_static_files_server_addr = SocketAddr::from((gui_ip_addr, 8000));
 
     web_gui::start_web_gui_static_files_server(
         web_gui_static_files_server_addr,
