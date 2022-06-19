@@ -121,14 +121,12 @@ fn switch(route: &Route) -> Html {
 fn app() -> Html {
     let document = gloo_utils::document();
 
-    let api_host = document
-        .query_selector("meta[name=\"api_host\"]")
-        .unwrap()
-        .unwrap()
-        .attributes()
-        .get_named_item("content")
-        .unwrap()
-        .value();
+    let mut api_host = document
+        .location()
+        .and_then(|loc| loc.hostname().ok())
+        .unwrap();
+
+    api_host.push_str(":8200");
 
     // We are only mutating this variable before the start of the app.
     unsafe {

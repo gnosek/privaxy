@@ -22,30 +22,18 @@ pub(crate) struct ApiError {
     error: String,
 }
 
-pub(crate) fn start_web_gui_static_files_server(bind: SocketAddr, api_addr: SocketAddr) {
+pub(crate) fn start_web_gui_static_files_server(bind: SocketAddr) {
     let filter = warp::get().and(warp::path::tail()).map(move |tail: Tail| {
         let tail_str = tail.as_str();
-
-        let mut is_index = tail_str == "index.html";
 
         let file_contents = match WEBAPP_FRONTEND_DIR.get_file(tail_str) {
             Some(file) => file.contents().to_vec(),
             None => {
-                is_index = true;
-
                 let index_html = WEBAPP_FRONTEND_DIR.get_file("index.html").unwrap();
                 WEBAPP_FRONTEND_DIR.get_file("index.html").unwrap();
 
                 index_html.contents().to_vec()
             }
-        };
-
-        let file_contents = if is_index {
-            let index_utf8 = String::from_utf8(file_contents).unwrap();
-
-            Vec::from(index_utf8.replace("{#api_host#}", &api_addr.to_string()))
-        } else {
-            file_contents
         };
 
         let mime = mime_guess::from_path(tail_str).first_raw().unwrap_or("");

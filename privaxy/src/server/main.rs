@@ -221,10 +221,7 @@ async fn main() {
 
     let web_gui_static_files_server_addr = SocketAddr::from((gui_ip_addr, 8000));
 
-    web_gui::start_web_gui_static_files_server(
-        web_gui_static_files_server_addr,
-        web_gui_server_addr,
-    );
+    web_gui::start_web_gui_static_files_server(web_gui_static_files_server_addr);
 
     log::info!("Proxy available at http://{}", proxy_server_addr);
     log::info!(
